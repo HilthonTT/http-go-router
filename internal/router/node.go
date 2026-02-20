@@ -10,6 +10,9 @@ type Node struct {
 	// IsParam indicates if this node is a path parameter (like :id)
 	isParam bool
 
+	// IsWildCard indicates if this node is a wild card
+	isWildcard bool
+
 	// Children contains child nodes
 	children []*Node
 

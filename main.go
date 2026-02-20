@@ -11,6 +11,7 @@ import (
 func main() {
 	r := router.New()
 	r.Use(middleware.Logger)
+	r.Use(middleware.MethodOverrideMiddleware)
 
 	r.GET("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Welcome to the home page!")

@@ -64,6 +64,17 @@ func (r *Router) Handle(method, path string, handler http.HandlerFunc) {
 	}
 
 	segments := splitPath(path)
+
+	// Check for wildcard
+	for i, segment := range segments {
+		if segment == "*" {
+			// Convert remaining path to a single wildcard segment
+			segments = segments[:i+1]
+			segments[i] = "*"
+			break
+		}
+	}
+
 	r.root.insert(segments, method, handler, 0)
 }
 
@@ -117,6 +128,13 @@ func (r *Router) findHandler(segments []string, node *Node, method string, param
 
 	// Static children are at the beginning of the children slice due to our sorting
 	for _, child := range node.children {
+		if child.isWildcard {
+			if handler, ok := child.handlers[method]; ok {
+				params["*"] = strings.Join(segments, "/")
+				return handler
+			}
+		}
+
 		if child.isParam {
 			// We've reached parameter nodes, no more static nodes to check
 			break
