@@ -2,7 +2,6 @@ package router
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"strings"
 )
@@ -11,21 +10,6 @@ type contextKey string
 
 const paramsKey contextKey = "params"
 
-// Node represents a node in the trie
-type Node struct {
-	// Part is the path segment this node represents
-	part string
-
-	// IsParam indicates if this node is a path parameter (like :id)
-	isParam bool
-
-	// Children contains child nodes
-	children []*Node
-
-	// Handlers stores handler funcs for different HTTP methods
-	handlers map[string]http.HandlerFunc
-}
-
 // Router is our HTTP router
 type Router struct {
 	// Root node of our trie
@@ -33,6 +17,8 @@ type Router struct {
 
 	// NotFound handler for 404 responses
 	notFound http.HandlerFunc
+
+	middleware []Middleware
 }
 
 func NewRouter() *Router {
@@ -78,48 +64,7 @@ func (r *Router) Handle(method, path string, handler http.HandlerFunc) {
 	}
 
 	segments := splitPath(path)
-	currentNode := r.root
-
-	// Navigate through existing nodes as far as possible
-	for i, segment := range segments {
-		var nextNode *Node
-		isParam := false
-
-		// Check if this is a path parameter
-		if len(segment) > 0 && segment[0] == ':' {
-			isParam = true
-			segment = segment[1:] // Remove the ':' prefix
-		}
-
-		// Look for an existing child node that matches this segment
-		for _, child := range currentNode.children {
-			if child.part == segment && child.isParam == isParam {
-				nextNode = child
-				break
-			}
-		}
-
-		// If no matching child was found, create a new one
-		if nextNode == nil {
-			nextNode = &Node{
-				part:     segment,
-				isParam:  isParam,
-				children: []*Node{},
-				handlers: make(map[string]http.HandlerFunc),
-			}
-			currentNode.children = append(currentNode.children, nextNode)
-		}
-
-		currentNode = nextNode
-
-		// If this is the last segment, add the handler
-		if i == len(segments)-1 {
-			if _, exists := currentNode.handlers[method]; exists {
-				panic(fmt.Sprintf("handler already registered for %s %s", method, path))
-			}
-			currentNode.handlers[method] = handler
-		}
-	}
+	r.root.insert(segments, method, handler, 0)
 }
 
 // ServeHTTP implements the http.Handler interface
@@ -161,16 +106,21 @@ func (r *Router) findHandler(segments []string, node *Node, method string, param
 	segment := segments[0]
 	remainingSegments := segments[1:]
 
-	// First try exact match
+	// Static children are at the beginning of the children slice due to our sorting
 	for _, child := range node.children {
-		if !child.isParam && child.part == segment {
+		if child.isParam {
+			// We've reached parameter nodes, no more static nodes to check
+			break
+		}
+
+		if child.part == segment {
 			if handler := r.findHandler(remainingSegments, child, method, params); handler != nil {
 				return handler
 			}
 		}
 	}
 
-	// Then try param match
+	// Then try param matches
 	for _, child := range node.children {
 		if child.isParam {
 			// Store the param value
