@@ -21,7 +21,7 @@ type Router struct {
 	middleware []Middleware
 }
 
-func NewRouter() *Router {
+func New() *Router {
 	return &Router{
 		root: &Node{
 			part:     "",

@@ -9,23 +9,25 @@ import (
 )
 
 func main() {
-	r := router.NewRouter()
+	r := router.New()
 	r.Use(middleware.Logger)
 
 	r.GET("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Welcome to the home page!")
 	})
 
-	r.GET("/users", func(w http.ResponseWriter, r *http.Request) {
+	api := r.Group("/api")
+
+	api.GET("/users", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "List of users")
 	})
 
-	r.GET("/users/:id", func(w http.ResponseWriter, r *http.Request) {
+	api.GET("/users/:id", func(w http.ResponseWriter, r *http.Request) {
 		params := router.Params(r)
 		fmt.Fprintf(w, "User details for user: %s", params["id"])
 	})
 
-	r.POST("/users", func(w http.ResponseWriter, r *http.Request) {
+	api.POST("/users", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Create a new user")
 	})
 
