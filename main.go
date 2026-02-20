@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/HilthonTT/http-go-router/internal/middleware"
 	"github.com/HilthonTT/http-go-router/internal/router"
 )
 
 func main() {
 	r := router.NewRouter()
+	r.Use(middleware.Logger)
 
 	r.GET("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Welcome to the home page!")

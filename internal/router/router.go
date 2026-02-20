@@ -67,6 +67,10 @@ func (r *Router) Handle(method, path string, handler http.HandlerFunc) {
 	r.root.insert(segments, method, handler, 0)
 }
 
+func (r *Router) Use(middleware ...Middleware) {
+	r.middleware = append(r.middleware, middleware...)
+}
+
 // ServeHTTP implements the http.Handler interface
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	path := req.URL.Path
@@ -77,11 +81,10 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	if handler == nil {
 		if r.notFound != nil {
-			r.notFound(w, req)
+			handler = r.notFound
 		} else {
-			http.NotFound(w, req)
+			handler = http.NotFound
 		}
-		return
 	}
 
 	// Store params in the request context
@@ -90,7 +93,13 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		req = req.WithContext(ctx)
 	}
 
-	handler(w, req)
+	// Apply middleware in reverse order (last added, first executed)
+	var h http.Handler = http.HandlerFunc(handler)
+	for i := len(r.middleware) - 1; i >= 0; i-- {
+		h = r.middleware[i](h)
+	}
+
+	h.ServeHTTP(w, req)
 }
 
 // findHandler recursively searches for a handler matching the given path segments
